@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Social Share Utility</title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap-theme.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/2.4.1/lodash.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/0.12.2/react.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/0.12.2/JSXTransformer.js"></script>
+  <script src="https://kenwheeler.github.io/mcfly/McFly.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js"></script>
+  <style type="text/css">
+    #app {
+      margin: 0px auto;
+      width: 60%;
+      max-width: 1000px;
+      min-width: 360px;
+    }
+    label {
+      color: #81BC50;
+    }
+  </style>
+</head>
+<body>
+  <h2 style="text-align: center;">Create Social Share URLs</h2>
+  <hr />
+  <div id="app"></div>
+  <script type="text/jsx">
+
+    /** McFly */
+    var Flux = new McFly();
+
+    /** Store */
+
+    // FACEBOOK
+    // url param 'u'
+    _fbShare = 'https://www.facebook.com/sharer/sharer.php';
+    _fbURL = '';
+
+    // TWITTER
+    // url param 'url'
+    // description param 'text'
+    _twShare = 'https://twitter.com/share';
+    _twURL = '';
+    _twDesc = '';
+
+    // LINKEDIN
+    // url param 'url'
+    // title param 'title'
+    // description param 'summary'
+    _liShare = 'http://www.linkedin.com/shareArticle?mini=true';
+    _liURL = '';
+    _liTitle = '';
+    _liDesc = '';
+
+    // GOOGLE+
+    // url param 'url'
+    _gpShare = 'https://plus.google.com/share';
+    _gpURL = '';
+
+    function fbAdd(url){
+      _fbURL = encodeURIComponent(url.trim());
+    }
+
+    function twAdd(url, desc){
+      _twURL = encodeURIComponent(url.trim());
+      _twDesc = encodeURIComponent(desc.trim());
+    }
+
+    function liAdd(url, title, desc){
+      _liURL = encodeURIComponent(url.trim());
+      _liTitle = encodeURIComponent(title.trim());
+      _liDesc = encodeURIComponent(desc.trim());
+    }
+
+    function gpAdd(url){
+      _gpURL = encodeURIComponent(url.trim());
+    }
+
+    var TheStore = Flux.createStore({
+      getURL: function(type){
+        if(type == 'fb'){
+          if(_fbURL) {
+            return `${_fbShare}?u=${_fbURL}`;
+          }
+        }
+        if(type == 'tw'){
+          if(_twURL || _twDesc) {
+            var twURL = _twURL ? `url=${_twURL}` : '';
+            var twDesc = _twDesc ? `&text=${_twDesc}` : '';
+            return `${_twShare}?${twURL}${twDesc}`;
+          }
+        }
+        if(type == 'li'){
+          if(_liURL || _liTitle || _liDesc) {
+            var liURL = _liURL ? `&url=${_liURL}` : '';
+            var liTitle = _liTitle ? `&title=${_liTitle}` : '';
+            var liDesc = _liDesc ? `&summary=${_liDesc}` : '';
+            return `${_liShare}${liURL}${liTitle}${liDesc}`;
+          }
+        }
+        if(type == 'gp'){
+          if(_gpURL) {
+            return `${_gpShare}?url=${_gpURL}`;
+          }
+        }
+      }
+    }, function(payload){
+      if(payload.actionType === "FB_ADD") {
+        fbAdd(payload.url);
+        TheStore.emitChange();
+      }
+      if(payload.actionType === "TW_ADD") {
+        twAdd(payload.url, payload.desc);
+        TheStore.emitChange();
+      }
+      if(payload.actionType === "LI_ADD") {
+        liAdd(payload.url, payload.title, payload.desc);
+        TheStore.emitChange();
+      }
+      if(payload.actionType === "GP_ADD") {
+        gpAdd(payload.url);
+        TheStore.emitChange();
+      }
+    });
+
+    /** Actions */
+
+    var TheActions = Flux.createActions({
+      fbAdd: function(url){
+        return {
+          actionType: "FB_ADD",
+          url: url
+        }
+      },
+      twAdd: function(url, desc){
+        return {
+          actionType: "TW_ADD",
+          url: url,
+          desc: desc
+        }
+      },
+      liAdd: function(url, title, desc){
+        return {
+          actionType: "LI_ADD",
+          url: url,
+          title: title,
+          desc: desc
+        }
+      },
+      gpAdd: function(url){
+        return {
+          actionType: "GP_ADD",
+          url: url
+        }
+      }
+    });
+
+    function getFinalURL(type){
+      return {
+        finalURL: TheStore.getURL(type)
+      }
+    }
+
+    /** Controller Views */
+
+    var MainView = React.createClass({
+      mixins: [TheStore.mixin],
+      getInitialState: function(){
+        return {
+          fbURL: getFinalURL('fb'),
+          twURL: getFinalURL('tw'),
+          liURL: getFinalURL('li'),
+          gpURL: getFinalURL('gp')
+        }
+      },
+      storeDidChange: function() {
+        this.setState({
+          fbURL: getFinalURL('fb'),
+          twURL: getFinalURL('tw'),
+          liURL: getFinalURL('li'),
+          gpURL: getFinalURL('gp')
+        });
+      },
+      render: function() {
+        return (
+          <div>
+            <FacebookForm finalURL={this.state.fbURL.finalURL} />
+            <TwitterForm finalURL={this.state.twURL.finalURL} />
+            <LinkedInForm finalURL={this.state.liURL.finalURL} />
+            <GooglePlusForm finalURL={this.state.gpURL.finalURL} />
+          </div>
+        )
+      }
+    });
+
+    /** Components */
+
+    var FacebookForm = React.createClass({
+      addVals: function(){
+        TheActions.fbAdd(this.refs.url.getDOMNode().value);
+      },
+      selectTxt: function() {
+        if(!this.refs.url.getDOMNode().value) {
+          alert('Facebook url is required');
+        } else {
+          $("#fbText").select();
+        }
+      },
+      render: function() {
+        var self = this;
+        return (
+          <div className="form-group">
+            <h3>Facebook</h3>
+            <label>URL</label>
+            <input
+              type="text"
+              className="form-control input"
+              ref="url"
+              placeholder="Paste the url here"
+              onChange={this.addVals} />
+            <div className="input-group" style={{marginTop: 10}}>
+              <span className="input-group-addon">Result</span>
+              <input
+                type="text"
+                id="fbText"
+                className="form-control"
+                readOnly
+                placeholder="Paste your information above and the result will show up here"
+                value={this.props.finalURL} />
+              <span className="input-group-btn">
+                <button className="btn btn-success" type="button" onClick={this.selectTxt}>Select</button>
+              </span>
+            </div>
+            <hr />
+          </div>
+        )
+      }
+    });
+
+    var TwitterForm = React.createClass({
+      addVals: function(){
+        TheActions.twAdd(this.refs.url.getDOMNode().value, this.refs.desc.getDOMNode().value);
+      },
+      selectTxt: function() {
+        var error = '';
+        if(!this.refs.url.getDOMNode().value) {
+          error += 'Twitter url is required\n';
+        }
+        if(!this.refs.desc.getDOMNode().value) {
+          error += 'Twitter description is required\n';
+        }
+        if(!this.refs.url.getDOMNode().value || !this.refs.desc.getDOMNode().value) {
+          alert(error);
+        } else {
+          $("#twText").select();
+        }
+      },
+      bitly: function() {
+        var self = this;
+        var longURL = encodeURIComponent(this.refs.url.getDOMNode().value.trim());
+        // Get a Bit.ly access token at http://dev.bitly.com/authentication.html
+        var access_token = 'ENTER_ACCESS_TOKEN_HERE';
+        $.get(`https://api-ssl.bitly.com/v3/shorten?access_token=${access_token}&longUrl=${longURL}`, function(result) {
+          this.refs.url.getDOMNode().value = result.data.url;
+          this.addVals();
+        }.bind(this));
+      },
+      render: function() {
+        var self = this;
+        return (
+          <div className="form-group">
+            <h3>Twitter</h3>
+            <label>URL</label>
+            <div className="input-group">
+              <input
+                type="text"
+                className="form-control input"
+                ref="url"
+                placeholder="Paste the url here then click Bit.ly to shorten url"
+                onChange={this.addVals} />
+              <span className="input-group-btn">
+                <button className="btn btn-primary" type="button" onClick={this.bitly}>Bit.ly</button>
+              </span>
+            </div>
+            <label>Description</label>
+            <input
+              type="text"
+              className="form-control input"
+              ref="desc"
+              placeholder="Paste the description here"
+              onChange={this.addVals} />
+            <div className="input-group" style={{marginTop: 10}}>
+              <span className="input-group-addon">Result</span>
+              <input
+                type="text"
+                id="twText"
+                className="form-control"
+                readOnly
+                placeholder="Paste your information above and the result will show up here"
+                value={this.props.finalURL} />
+              <span className="input-group-btn">
+                <button className="btn btn-success" type="button" onClick={this.selectTxt}>Select</button>
+              </span>
+            </div>
+            <hr />
+          </div>
+        )
+      }
+    });
+
+    var LinkedInForm = React.createClass({
+      addVals: function(){
+        TheActions.liAdd(this.refs.url.getDOMNode().value, this.refs.title.getDOMNode().value, this.refs.desc.getDOMNode().value);
+      },
+      selectTxt: function() {
+        var error = '';
+        if(!this.refs.url.getDOMNode().value) {
+          error += 'LinkedIn url is required\n';
+        }
+        if(!this.refs.title.getDOMNode().value) {
+          error += 'LinkedIn title is required\n';
+        }
+        if(!this.refs.desc.getDOMNode().value) {
+          error += 'LinkedIn description is required\n';
+        }
+        if(!this.refs.url.getDOMNode().value || !this.refs.title.getDOMNode().value || !this.refs.desc.getDOMNode().value) {
+          alert(error);
+        } else {
+          $("#liText").select();
+        }
+      },
+      render: function() {
+        var self = this;
+        return (
+          <div className="form-group">
+            <h3>LinkedIn</h3>
+            <label>URL</label>
+            <input
+              type="text"
+              className="form-control input"
+              ref="url"
+              placeholder="Paste the url here"
+              onChange={this.addVals} />
+            <label>Title</label>
+            <input
+              type="text"
+              className="form-control input"
+              ref="title"
+              placeholder="Paste the title here"
+              onChange={this.addVals} />
+            <label>Description</label>
+            <input
+              type="text"
+              className="form-control input"
+              ref="desc"
+              placeholder="Paste the description here"
+              onChange={this.addVals} />
+            <div className="input-group" style={{marginTop: 10}}>
+              <span className="input-group-addon">Result</span>
+              <input
+                type="text"
+                id="liText"
+                className="form-control"
+                readOnly
+                placeholder="Paste your information above and the result will show up here"
+                value={this.props.finalURL} />
+              <span className="input-group-btn">
+                <button className="btn btn-success" type="button" onClick={this.selectTxt}>Select</button>
+              </span>
+            </div>
+            <hr />
+          </div>
+        )
+      }
+    });
+
+    var GooglePlusForm = React.createClass({
+      addVals: function(){
+        TheActions.gpAdd(this.refs.url.getDOMNode().value);
+      },
+      selectTxt: function() {
+        if(!this.refs.url.getDOMNode().value) {
+          alert('Google+ url is required');
+        } else {
+          $("#gpText").select();
+        }
+      },
+      render: function() {
+        var self = this;
+        return (
+          <div className="form-group">
+            <h3>Google+</h3>
+            <label>URL</label>
+            <input
+              type="text"
+              className="form-control input"
+              ref="url"
+              placeholder="Paste the url here"
+              onChange={this.addVals} />
+            <div className="input-group" style={{marginTop: 10}}>
+              <span className="input-group-addon">Result</span>
+              <input
+                type="text"
+                id="gpText"
+                className="form-control"
+                readOnly
+                placeholder="Paste your information above and the result will show up here"
+                value={this.props.finalURL} />
+              <span className="input-group-btn">
+                <button className="btn btn-success" type="button" onClick={this.selectTxt}>Select</button>
+              </span>
+            </div>
+            <hr />
+          </div>
+        )
+      }
+    });
+
+    React.render(<MainView />, document.getElementById('app'));
+
+  </script>
+</body>
+</html>
